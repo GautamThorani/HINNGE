@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: hennge-postgres
+    environment:
+      POSTGRES_DB: hennge_security
+      POSTGRES_USER: hennge_user
+      POSTGRES_PASSWORD: hennge_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init-db:/docker-entrypoint-initdb.d  
+    networks:
+      - hennge-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hennge_user -d hennge_security"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build: ./backend/api-gateway
+    ports:
+      - "8000:8000"
+    networks:
+      - hennge-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hennge_user:hennge_password@postgres:5432/hennge_security
+
+  auth-service:
+    build: ./backend/auth-service
+    ports:
+      - "8001:8001"
+    networks:
+      - hennge-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hennge_user:hennge_password@postgres:5432/hennge_security
+
+  user-service:
+    build: ./backend/user-service
+    ports:
+      - "8002:8002"
+    networks:
+      - hennge-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hennge_user:hennge_password@postgres:5432/hennge_security
+
+  mfa-service:
+    build: ./backend/mfa-service
+    ports:
+      - "8003:8003"
+    networks:
+      - hennge-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hennge_user:hennge_password@postgres:5432/hennge_security
+
+  audit-service:
+    build: ./backend/audit-service
+    ports:
+      - "8004:8004"
+    networks:
+      - hennge-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hennge_user:hennge_password@postgres:5432/hennge_security
+
+networks:
+  hennge-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
